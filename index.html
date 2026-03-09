@@ -125,33 +125,6 @@
             z-index: 50;
             pointer-events: none;
         }
-
-        .modal-backdrop {
-            background-color: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(4px);
-        }
-
-        .sparkle-icon {
-            width: 20px;
-            height: 20px;
-            background-color: #ffffff;
-            clip-path: polygon(50% 0%, 65% 35%, 100% 50%, 65% 65%, 50% 100%, 35% 65%, 0% 50%, 35% 35%);
-        }
-
-        .loader {
-            border: 2px solid #333;
-            border-top: 2px solid #3b82f6;
-            border-radius: 50%;
-            width: 16px;
-            height: 16px;
-            animation: spin 1s linear infinite;
-            display: inline-block;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
     </style>
 </head>
 <body class="h-screen flex flex-col">
@@ -169,11 +142,7 @@
 
     <div class="flex flex-1 overflow-hidden">
         <nav class="tool-nav flex flex-col items-center">
-            <div class="nav-item active" data-tab="crear">
-                <div class="sparkle-icon mb-1"></div>
-                <span>Crear</span>
-            </div>
-            <div class="nav-item" data-tab="filtros">
+            <div class="nav-item active" data-tab="filtros">
                 <svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                 <span>Filtros</span>
             </div>
@@ -188,15 +157,7 @@
         </nav>
 
         <aside class="side-panel flex flex-col p-4 overflow-y-auto no-scrollbar">
-            <div id="panel-crear" class="tab-content">
-                <h2 class="text-lg font-semibold mb-6">Crear</h2>
-                <button id="btn-open-ai-modal" class="card-option w-full py-4 flex flex-col items-center gap-2 border border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10">
-                    <div class="sparkle-icon"></div>
-                    <span class="text-sm font-medium">Generar imagen con IA</span>
-                </button>
-            </div>
-
-            <div id="panel-filtros" class="tab-content hidden">
+            <div id="panel-filtros" class="tab-content">
                 <h2 class="text-lg font-semibold mb-6">Filtros e imagen</h2>
                 <section class="mb-8">
                     <h3 class="text-xs font-medium text-gray-400 mb-4">Ajustes Rápidos</h3>
@@ -265,7 +226,7 @@
                         <span class="text-[10px]">Círculo</span>
                     </button>
                     <button onclick="addElement('star')" class="card-option py-4 flex flex-col items-center">
-                        <div class="sparkle-icon mb-2"></div>
+                        <svg class="w-6 h-6 text-white mb-2" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                         <span class="text-[10px]">Estrella</span>
                     </button>
                     <button onclick="addElement('heart')" class="card-option py-4 flex flex-col items-center">
@@ -301,7 +262,7 @@
                     <button id="btn-cancel-crop" class="bg-red-600 px-3 py-1 rounded text-xs font-medium">Cancelar</button>
                 </div>
                 <input type="file" id="upload" class="hidden" accept="image/*">
-                <button onclick="document.getElementById('upload').click()" class="btn-action bg-blue-600 text-white hover:bg-blue-700">Subir</button>
+                <button onclick="document.getElementById('upload').click()" class="btn-action bg-blue-600 text-white hover:bg-blue-700">Subir imagen</button>
             </div>
 
             <div id="adjustment-panel" class="hidden absolute top-24 right-8 z-10 w-64 bg-[#1e1e1e] p-4 rounded-xl border border-[#333]">
@@ -319,7 +280,7 @@
 
             <div class="editor-canvas-container flex-1 p-8" id="canvas-wrapper">
                 <div id="drop-zone" class="flex flex-col items-center justify-center border-2 border-dashed border-[#333] rounded-2xl w-full h-full max-w-2xl cursor-pointer">
-                    <p class="text-gray-500">Haz clic o arrastra una imagen aquí</p>
+                    <p class="text-gray-500">Haz clic o sube una imagen para comenzar</p>
                 </div>
                 <div id="canvas-container-box" class="relative inline-block">
                     <canvas id="mainCanvas" class="hidden cursor-crosshair"></canvas>
@@ -329,31 +290,7 @@
         </main>
     </div>
 
-    <div id="ai-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center modal-backdrop p-4">
-        <div class="bg-[#1a1a1a] w-full max-w-md rounded-2xl border border-[#333] shadow-2xl overflow-hidden relative">
-            <button id="btn-close-ai" class="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-            <div class="p-6">
-                <div class="flex items-center gap-2 mb-6">
-                    <div class="sparkle-icon"></div>
-                    <h3 class="text-lg font-semibold">Generador de Imágenes</h3>
-                </div>
-                <div class="space-y-4">
-                    <textarea id="ai-prompt" rows="4" class="w-full bg-[#121212] border border-[#282828] rounded-xl p-4 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-gray-600 resize-none" placeholder="Describe la imagen con detalle..."></textarea>
-                    <button id="btn-generate-ai" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2">
-                        <span id="ai-btn-text">Generar imagen</span>
-                        <div id="ai-loader" class="loader hidden"></div>
-                    </button>
-                    <p id="ai-error" class="text-red-400 text-xs hidden text-center p-2 bg-red-900/10 rounded"></p>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script>
-        const apiKey = "";
-        
         let originalImg = null;
         let filters = { brightness: 100, contrast: 100, special: 'none' };
         let rotation = 0;
@@ -372,91 +309,6 @@
             const dropZone = document.getElementById('drop-zone');
             const cropOverlay = document.getElementById('crop-overlay');
             const cropControls = document.getElementById('crop-controls');
-            const aiModal = document.getElementById('ai-modal');
-            const aiPrompt = document.getElementById('ai-prompt');
-            const aiBtn = document.getElementById('btn-generate-ai');
-            const aiLoader = document.getElementById('ai-loader');
-            const aiBtnText = document.getElementById('ai-btn-text');
-            const aiError = document.getElementById('ai-error');
-
-            const openAiBtn = document.getElementById('btn-open-ai-modal');
-            if (openAiBtn) openAiBtn.onclick = () => aiModal.classList.remove('hidden');
-            
-            const closeAiBtn = document.getElementById('btn-close-ai');
-            if (closeAiBtn) closeAiBtn.onclick = () => {
-                aiModal.classList.add('hidden');
-                aiError.classList.add('hidden');
-            };
-
-            async function generateAIImage(prompt) {
-                if (aiBtn.disabled) return;
-                
-                aiBtn.disabled = true;
-                aiLoader.classList.remove('hidden');
-                aiBtnText.innerText = "Procesando...";
-                aiError.classList.add('hidden');
-
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`;
-                
-                let maxRetries = 5;
-                let currentRetry = 0;
-
-                const attemptFetch = async () => {
-                    try {
-                        const response = await fetch(url, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ 
-                                instances: { prompt: prompt },
-                                parameters: { sampleCount: 1 }
-                            })
-                        });
-
-                        const result = await response.json();
-                        
-                        if (!response.ok) {
-                            throw new Error(result.error?.message || `Error HTTP: ${response.status}`);
-                        }
-
-                        const base64Data = result.predictions?.[0]?.bytesBase64Encoded;
-                        if (base64Data) {
-                            loadImage(`data:image/png;base64,${base64Data}`);
-                            aiModal.classList.add('hidden');
-                            return true;
-                        } else {
-                            throw new Error('No se recibió información de imagen.');
-                        }
-                    } catch (e) {
-                        currentRetry++;
-                        if (currentRetry < maxRetries) {
-                            const delay = Math.pow(2, currentRetry) * 1000;
-                            await new Promise(resolve => setTimeout(resolve, delay));
-                            return await attemptFetch();
-                        } else {
-                            aiError.innerText = "Error al conectar con el servidor de IA.";
-                            aiError.classList.remove('hidden');
-                            return false;
-                        }
-                    }
-                };
-
-                await attemptFetch();
-                aiBtn.disabled = false;
-                aiLoader.classList.add('hidden');
-                aiBtnText.innerText = "Generar imagen";
-            }
-
-            if (aiBtn) {
-                aiBtn.onclick = () => {
-                    const prompt = aiPrompt.value.trim();
-                    if (prompt) {
-                        generateAIImage(prompt);
-                    } else {
-                        aiError.innerText = "Escribe una descripción primero.";
-                        aiError.classList.remove('hidden');
-                    }
-                };
-            }
 
             function loadImage(src) {
                 const img = new Image();
