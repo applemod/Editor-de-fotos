@@ -1,1 +1,720 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editor de Fotos Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+        
+        body {
+            background-color: #000000;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+        }
+
+        .side-panel {
+            width: 280px;
+            background-color: #121212;
+            border-right: 1px solid #282828;
+        }
+
+        .tool-nav {
+            width: 72px;
+            background-color: #121212;
+            border-right: 1px solid #282828;
+            padding-top: 8px;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 64px;
+            height: 64px;
+            margin: 4px auto;
+            border-radius: 8px;
+            font-size: 10px;
+            color: #a0a0a0;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .nav-item.active {
+            color: #ffffff;
+            background-color: #252525;
+        }
+
+        .nav-item:hover:not(.active) {
+            color: #d1d1d1;
+            background-color: #1a1a1a;
+        }
+
+        .editor-canvas-container {
+            background-color: #0a0a0a;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: auto;
+        }
+
+        .card-option {
+            background-color: #1e1e1e;
+            border-radius: 8px;
+            padding: 8px;
+            cursor: pointer;
+            transition: border 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .card-option:hover {
+            border-color: #3b82f6;
+        }
+
+        .card-img-placeholder {
+            width: 100%;
+            aspect-ratio: 1;
+            background-color: #2a2a2a;
+            border-radius: 4px;
+            margin-bottom: 4px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .top-bar {
+            height: 48px;
+            background-color: #121212;
+            border-bottom: 1px solid #282828;
+        }
+
+        .btn-action {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #e0e0e0;
+            transition: background 0.2s;
+        }
+
+        .btn-action:hover {
+            background-color: #252525;
+        }
+
+        canvas {
+            max-width: 90%;
+            max-height: 90%;
+            box-shadow: 0 0 40px rgba(0,0,0,0.8);
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+
+        #crop-overlay {
+            position: absolute;
+            border: 2px dashed #3b82f6;
+            background-color: rgba(59, 130, 246, 0.2);
+            cursor: move;
+            display: none;
+            z-index: 50;
+            pointer-events: none;
+        }
+
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(4px);
+        }
+
+        .sparkle-icon {
+            width: 20px;
+            height: 20px;
+            background-color: #ffffff;
+            clip-path: polygon(50% 0%, 65% 35%, 100% 50%, 65% 65%, 50% 100%, 35% 65%, 0% 50%, 35% 35%);
+        }
+
+        .loader {
+            border: 2px solid #333;
+            border-top: 2px solid #3b82f6;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col">
+
+    <header class="h-12 flex items-center justify-between px-4 bg-[#121212] border-b border-[#282828]">
+        <div class="flex items-center gap-2">
+            <svg class="w-6 h-6 text-blue-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 12l10 10 10-10L12 2z"/></svg>
+            <span class="text-sm font-medium">Editor de Fotos</span>
+            <span class="text-xs text-gray-500 ml-2">Listo</span>
+        </div>
+        <div class="flex items-center gap-3">
+            <button id="download-btn" class="bg-[#252525] px-3 py-1.5 rounded text-xs font-medium hover:bg-[#333]">Guardar</button>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        <nav class="tool-nav flex flex-col items-center">
+            <div class="nav-item active" data-tab="crear">
+                <div class="sparkle-icon mb-1"></div>
+                <span>Crear</span>
+            </div>
+            <div class="nav-item" data-tab="filtros">
+                <svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                <span>Filtros</span>
+            </div>
+            <div class="nav-item" data-tab="texto">
+                <svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                <span>Texto</span>
+            </div>
+            <div class="nav-item" data-tab="elementos">
+                <svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                <span>Elementos</span>
+            </div>
+        </nav>
+
+        <aside class="side-panel flex flex-col p-4 overflow-y-auto no-scrollbar">
+            <div id="panel-crear" class="tab-content">
+                <h2 class="text-lg font-semibold mb-6">Crear</h2>
+                <button id="btn-open-ai-modal" class="card-option w-full py-4 flex flex-col items-center gap-2 border border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10">
+                    <div class="sparkle-icon"></div>
+                    <span class="text-sm font-medium">Crear una imagen con IA</span>
+                </button>
+            </div>
+
+            <div id="panel-filtros" class="tab-content hidden">
+                <h2 class="text-lg font-semibold mb-6">Filtros e imagen</h2>
+                <section class="mb-8">
+                    <h3 class="text-xs font-medium text-gray-400 mb-4">Ajustes Rápidos</h3>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="card-option" id="btn-reset">
+                            <div class="card-img-placeholder"><svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg></div>
+                            <p class="text-[10px] text-center">Reiniciar</p>
+                        </div>
+                        <div class="card-option" id="btn-blur">
+                            <div class="card-img-placeholder"><div class="w-4 h-4 rounded-full border-2 border-dashed border-gray-500"></div></div>
+                            <p class="text-[10px] text-center">Desenfoque</p>
+                        </div>
+                        <div class="card-option" id="btn-invert">
+                            <div class="card-img-placeholder"><svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3"/></svg></div>
+                            <p class="text-[10px] text-center">Invertir</p>
+                        </div>
+                    </div>
+                </section>
+                <section>
+                    <h3 class="text-xs font-medium text-gray-400 mb-4">Estilos</h3>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="card-option" id="btn-grayscale">
+                            <div class="card-img-placeholder bg-gray-400"></div>
+                            <p class="text-[10px] text-center">Gris</p>
+                        </div>
+                        <div class="card-option" id="btn-sepia">
+                            <div class="card-img-placeholder bg-orange-900/50"></div>
+                            <p class="text-[10px] text-center">Sepia</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div id="panel-texto" class="tab-content hidden">
+                <h2 class="text-lg font-semibold mb-6">Texto</h2>
+                <div class="space-y-3">
+                    <div class="card-option w-full py-4 text-center border-dashed border-gray-600 mb-2" id="add-title">
+                        <p class="text-sm font-bold">Agregar título</p>
+                    </div>
+                    <div class="card-option w-full py-3 text-center border-dashed border-gray-600" id="add-subtitle">
+                        <p class="text-xs font-medium">Agregar subtítulo</p>
+                    </div>
+                    <div id="text-edit-tools" class="hidden mt-6 pt-6 border-t border-gray-800 space-y-4">
+                        <div class="space-y-1">
+                            <label class="text-[11px] text-gray-400 uppercase">Contenido</label>
+                            <input type="text" id="text-content-input" class="w-full bg-[#252525] border border-gray-700 rounded p-2 text-sm text-white focus:outline-none">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[11px] text-gray-400 uppercase">Color</label>
+                            <input type="color" id="text-color-input" class="w-full h-8 bg-transparent border-none cursor-pointer">
+                        </div>
+                        <button id="delete-text" class="w-full py-2 bg-red-900/20 text-red-400 text-xs rounded">Eliminar</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="panel-elementos" class="tab-content hidden">
+                <h2 class="text-lg font-semibold mb-6">Elementos</h2>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="addElement('rect')" class="card-option py-4 flex flex-col items-center">
+                        <div class="w-6 h-6 bg-white mb-2"></div>
+                        <span class="text-[10px]">Cuadrado</span>
+                    </button>
+                    <button onclick="addElement('circle')" class="card-option py-4 flex flex-col items-center">
+                        <div class="w-6 h-6 bg-white rounded-full mb-2"></div>
+                        <span class="text-[10px]">Círculo</span>
+                    </button>
+                    <button onclick="addElement('star')" class="card-option py-4 flex flex-col items-center">
+                        <div class="sparkle-icon mb-2"></div>
+                        <span class="text-[10px]">Estrella</span>
+                    </button>
+                    <button onclick="addElement('heart')" class="card-option py-4 flex flex-col items-center">
+                        <svg class="w-6 h-6 text-white mb-2" fill="currentColor" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                        <span class="text-[10px]">Corazón</span>
+                    </button>
+                </div>
+                <div id="element-edit-tools" class="hidden mt-6 pt-6 border-t border-gray-800 space-y-4">
+                    <input type="color" id="element-color-input" class="w-full h-8 bg-transparent border-none cursor-pointer">
+                    <button id="delete-element" class="w-full py-2 bg-red-900/20 text-red-400 text-xs rounded">Eliminar</button>
+                </div>
+            </div>
+        </aside>
+
+        <main class="flex-1 flex flex-col">
+            <div class="top-bar flex items-center px-4 gap-2">
+                <button class="btn-action" id="btn-rotate">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    Girar
+                </button>
+                <button class="btn-action" id="btn-crop-mode">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M7 2v10a2 2 0 002 2h10M3 7h2M3 3l2 2"/></svg>
+                    Recortar
+                </button>
+                <div class="h-4 w-[1px] bg-gray-700"></div>
+                <button class="btn-action" id="toggle-adjustments">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                    Ajustes
+                </button>
+                <div class="flex-1"></div>
+                <div id="crop-controls" class="hidden flex items-center gap-2">
+                    <button id="btn-confirm-crop" class="bg-green-600 px-3 py-1 rounded text-xs font-medium">Confirmar</button>
+                    <button id="btn-cancel-crop" class="bg-red-600 px-3 py-1 rounded text-xs font-medium">Cancelar</button>
+                </div>
+                <input type="file" id="upload" class="hidden" accept="image/*">
+                <button onclick="document.getElementById('upload').click()" class="btn-action bg-blue-600 text-white hover:bg-blue-700">Subir</button>
+            </div>
+
+            <div id="adjustment-panel" class="hidden absolute top-24 right-8 z-10 w-64 bg-[#1e1e1e] p-4 rounded-xl border border-[#333]">
+                <div class="space-y-4">
+                    <div class="space-y-1">
+                        <label class="text-[11px] text-gray-400">Brillo</label>
+                        <input type="range" id="brightness" min="0" max="200" value="100" class="w-full h-1 bg-gray-700 rounded-lg cursor-pointer">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[11px] text-gray-400">Contraste</label>
+                        <input type="range" id="contrast" min="0" max="200" value="100" class="w-full h-1 bg-gray-700 rounded-lg cursor-pointer">
+                    </div>
+                </div>
+            </div>
+
+            <div class="editor-canvas-container flex-1 p-8" id="canvas-wrapper">
+                <div id="drop-zone" class="flex flex-col items-center justify-center border-2 border-dashed border-[#333] rounded-2xl w-full h-full max-w-2xl cursor-pointer">
+                    <p class="text-gray-500">Haz clic o arrastra una imagen aquí</p>
+                </div>
+                <div id="canvas-container-box" class="relative inline-block">
+                    <canvas id="mainCanvas" class="hidden cursor-crosshair"></canvas>
+                    <div id="crop-overlay"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="ai-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center modal-backdrop p-4">
+        <div class="bg-[#1a1a1a] w-full max-md rounded-2xl border border-[#333] shadow-2xl overflow-hidden relative">
+            <button id="btn-close-ai" class="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+            <div class="p-6">
+                <div class="flex items-center gap-2 mb-6">
+                    <div class="sparkle-icon"></div>
+                    <h3 class="text-lg font-semibold">Crear una imagen con IA</h3>
+                </div>
+                <div class="space-y-4">
+                    <textarea id="ai-prompt" rows="4" class="w-full bg-[#121212] border border-[#282828] rounded-xl p-4 text-sm text-white focus:outline-none focus:border-blue-500 placeholder-gray-600 resize-none" placeholder="Coloca tus ideas creativas aquí..."></textarea>
+                    <button id="btn-generate-ai" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2">
+                        <span id="ai-btn-text">Generar imagen</span>
+                        <div id="ai-loader" class="loader hidden"></div>
+                    </button>
+                    <p id="ai-error" class="text-red-500 text-xs hidden"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const apiKey = typeof __api_key !== 'undefined' ? __api_key : ""; 
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d');
+        const upload = document.getElementById('upload');
+        const dropZone = document.getElementById('drop-zone');
+        const cropOverlay = document.getElementById('crop-overlay');
+        const cropControls = document.getElementById('crop-controls');
+        const aiModal = document.getElementById('ai-modal');
+        const aiPrompt = document.getElementById('ai-prompt');
+        const aiBtn = document.getElementById('btn-generate-ai');
+        const aiLoader = document.getElementById('ai-loader');
+        const aiBtnText = document.getElementById('ai-btn-text');
+        const aiError = document.getElementById('ai-error');
+        
+        let originalImg = null;
+        let filters = { brightness: 100, contrast: 100, special: 'none' };
+        let rotation = 0;
+        let layers = [];
+        let selectedLayerIndex = -1;
+        let isDragging = false;
+        let isCropping = false;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+
+        let cropStart = { x: 0, y: 0 };
+
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.onclick = () => {
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+                item.classList.add('active');
+                document.getElementById(`panel-${item.getAttribute('data-tab')}`).classList.remove('hidden');
+            };
+        });
+
+        document.getElementById('btn-open-ai-modal').onclick = () => aiModal.classList.remove('hidden');
+        document.getElementById('btn-close-ai').onclick = () => aiModal.classList.add('hidden');
+        aiModal.onclick = (e) => { if(e.target === aiModal) aiModal.classList.add('hidden'); };
+
+        async function generateAIImage(prompt) {
+            aiBtn.disabled = true;
+            aiLoader.classList.remove('hidden');
+            aiBtnText.innerText = "Generando...";
+            aiError.classList.add('hidden');
+
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`;
+            const payload = {
+                instances: [{ prompt: prompt }],
+                parameters: { sampleCount: 1 }
+            };
+
+            let retries = 5;
+            let delays = [1000, 2000, 4000, 8000, 16000];
+
+            for (let i = 0; i <= retries; i++) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) throw new Error('Servicio temporalmente no disponible');
+
+                    const result = await response.json();
+                    if (!result.predictions?.[0]?.bytesBase64Encoded) throw new Error('Fallo en la generación');
+                    
+                    const base64Data = result.predictions[0].bytesBase64Encoded;
+                    const imageUrl = `data:image/png;base64,${base64Data}`;
+                    
+                    const img = new Image();
+                    img.onload = () => {
+                        originalImg = img;
+                        rotation = 0;
+                        layers = [];
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        canvas.classList.remove('hidden');
+                        dropZone.classList.add('hidden');
+                        applyAll();
+                        aiModal.classList.add('hidden');
+                        resetAIUI();
+                    };
+                    img.src = imageUrl;
+                    return;
+                } catch (error) {
+                    if (i === retries) {
+                        aiError.innerText = "Error persistente en la generación. Intenta con un prompt diferente.";
+                        aiError.classList.remove('hidden');
+                        resetAIUI();
+                        return;
+                    }
+                    await new Promise(res => setTimeout(res, delays[i]));
+                }
+            }
+        }
+
+        function resetAIUI() {
+            aiBtn.disabled = false;
+            aiLoader.classList.add('hidden');
+            aiBtnText.innerText = "Generar imagen";
+        }
+
+        aiBtn.onclick = () => {
+            const prompt = aiPrompt.value.trim();
+            if (prompt) generateAIImage(prompt);
+        };
+
+        function handleFile(file) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    originalImg = img;
+                    rotation = 0;
+                    layers = [];
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    canvas.classList.remove('hidden');
+                    dropZone.classList.add('hidden');
+                    applyAll();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+        upload.onchange = (e) => handleFile(e.target.files[0]);
+        dropZone.onclick = () => upload.click();
+
+        function applyAll() {
+            if (!originalImg) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(canvas.width/2, canvas.height/2);
+            ctx.rotate(rotation * Math.PI / 180);
+            ctx.filter = `brightness(${filters.brightness}%) contrast(${filters.contrast}%) ${filters.special === 'none' ? '' : filters.special}`;
+            ctx.drawImage(originalImg, -originalImg.width/2, -originalImg.height/2);
+            ctx.restore();
+
+            layers.forEach((l, i) => {
+                ctx.save();
+                if (l.type === 'text') {
+                    ctx.font = `${l.size}px Inter`;
+                    ctx.fillStyle = l.color;
+                    ctx.textBaseline = 'top';
+                    l.width = ctx.measureText(l.content).width;
+                    l.height = l.size;
+                    ctx.fillText(l.content, l.x, l.y);
+                } else {
+                    l.width = l.size; l.height = l.size;
+                    drawShape(l.type, l.x, l.y, l.size, l.color);
+                }
+                if (i === selectedLayerIndex && !isCropping) {
+                    ctx.strokeStyle = '#3b82f6';
+                    ctx.setLineDash([5, 5]);
+                    ctx.strokeRect(l.x - 2, l.y - 2, l.width + 4, l.height + 4);
+                }
+                ctx.restore();
+            });
+        }
+
+        function drawShape(type, x, y, size, color) {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            if (type === 'rect') ctx.rect(x, y, size, size);
+            else if (type === 'circle') ctx.arc(x + size/2, y + size/2, size/2, 0, Math.PI * 2);
+            else if (type === 'star') {
+                let cx = x + size/2; let cy = y + size/2;
+                let outer = size/2; let inner = size * 0.35;
+                ctx.moveTo(cx, cy - outer);
+                ctx.lineTo(cx + inner, cy - inner);
+                ctx.lineTo(cx + outer, cy);
+                ctx.lineTo(cx + inner, cy + inner);
+                ctx.lineTo(cx, cy + outer);
+                ctx.lineTo(cx - inner, cy + inner);
+                ctx.lineTo(cx - outer, cy);
+                ctx.lineTo(cx - inner, cy - inner);
+                ctx.closePath();
+            } else if (type === 'heart') {
+                let s = size*0.8, hx = x+size/2, hy = y+size/2;
+                ctx.moveTo(hx, hy + s/4);
+                ctx.bezierCurveTo(hx, hy, hx-s/2, hy, hx-s/2, hy-s/4);
+                ctx.bezierCurveTo(hx-s/2, hy-s/2, hx, hy-s/2, hx, hy-s/4);
+                ctx.bezierCurveTo(hx, hy-s/2, hx+s/2, hy-s/2, hx+s/2, hy-s/4);
+                ctx.bezierCurveTo(hx+s/2, hy, hx, hy, hx, hy+s/4);
+            }
+            ctx.fill();
+        }
+
+        document.getElementById('btn-crop-mode').onclick = () => {
+            if (!originalImg) return;
+            isCropping = true;
+            cropControls.classList.remove('hidden');
+            cropOverlay.style.display = 'block';
+            cropOverlay.style.width = '0';
+            cropOverlay.style.height = '0';
+            selectedLayerIndex = -1;
+            applyAll();
+        };
+
+        document.getElementById('btn-confirm-crop').onclick = () => {
+            const r = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / r.width;
+            const scaleY = canvas.height / r.height;
+
+            const left = (parseFloat(cropOverlay.style.left) || 0) * scaleX;
+            const top = (parseFloat(cropOverlay.style.top) || 0) * scaleY;
+            const width = parseFloat(cropOverlay.style.width) * scaleX;
+            const height = parseFloat(cropOverlay.style.height) * scaleY;
+
+            if (width > 10 && height > 10) {
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = width;
+                tempCanvas.height = height;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.drawImage(canvas, left, top, width, height, 0, 0, width, height);
+
+                const newImg = new Image();
+                newImg.onload = () => {
+                    originalImg = newImg;
+                    canvas.width = width;
+                    canvas.height = height;
+                    rotation = 0;
+                    filters = { brightness: 100, contrast: 100, special: 'none' };
+                    layers = [];
+                    applyAll();
+                };
+                newImg.src = tempCanvas.toDataURL();
+            }
+            exitCrop();
+        };
+
+        document.getElementById('btn-cancel-crop').onclick = exitCrop;
+
+        function exitCrop() {
+            isCropping = false;
+            cropControls.classList.add('hidden');
+            cropOverlay.style.display = 'none';
+            applyAll();
+        }
+
+        canvas.onmousedown = (e) => {
+            const r = canvas.getBoundingClientRect();
+            const mx = (e.clientX - r.left) * (canvas.width / r.width);
+            const my = (e.clientY - r.top) * (canvas.height / r.height);
+
+            if (isCropping) {
+                isDragging = true;
+                cropStart = { x: e.clientX - r.left, y: e.clientY - r.top };
+                cropOverlay.style.left = `${cropStart.x}px`;
+                cropOverlay.style.top = `${cropStart.y}px`;
+                cropOverlay.style.width = '0';
+                cropOverlay.style.height = '0';
+                return;
+            }
+
+            selectedLayerIndex = layers.findLastIndex(l => mx >= l.x && mx <= l.x + l.width && my >= l.y && my <= l.y + l.height);
+            if (selectedLayerIndex > -1) {
+                isDragging = true;
+                dragOffsetX = mx - layers[selectedLayerIndex].x;
+                dragOffsetY = my - layers[selectedLayerIndex].y;
+            }
+            updateTools(); applyAll();
+        };
+
+        window.onmousemove = (e) => {
+            if (!isDragging) return;
+            const r = canvas.getBoundingClientRect();
+
+            if (isCropping) {
+                const currentX = e.clientX - r.left;
+                const currentY = e.clientY - r.top;
+                
+                const width = currentX - cropStart.x;
+                const height = currentY - cropStart.y;
+
+                cropOverlay.style.width = `${Math.abs(width)}px`;
+                cropOverlay.style.height = `${Math.abs(height)}px`;
+                cropOverlay.style.left = `${width < 0 ? currentX : cropStart.x}px`;
+                cropOverlay.style.top = `${height < 0 ? currentY : cropStart.y}px`;
+                return;
+            }
+
+            if (selectedLayerIndex > -1) {
+                const mx = (e.clientX - r.left) * (canvas.width / r.width);
+                const my = (e.clientY - r.top) * (canvas.height / r.height);
+                layers[selectedLayerIndex].x = mx - dragOffsetX;
+                layers[selectedLayerIndex].y = my - dragOffsetY;
+                applyAll();
+            }
+        };
+
+        window.onmouseup = () => isDragging = false;
+
+        function addText(content, size) {
+            layers.push({ type: 'text', content, size, color: '#ffffff', x: 50, y: 50 });
+            selectedLayerIndex = layers.length - 1;
+            applyAll(); updateTools();
+        }
+
+        function addElement(type) {
+            layers.push({ type, size: 100, color: '#ffffff', x: 50, y: 50 });
+            selectedLayerIndex = layers.length - 1;
+            applyAll(); updateTools();
+        }
+
+        function updateTools() {
+            const l = layers[selectedLayerIndex];
+            document.getElementById('text-edit-tools').classList.toggle('hidden', !l || l.type !== 'text');
+            document.getElementById('element-edit-tools').classList.toggle('hidden', !l || l.type === 'text');
+            if (l) {
+                if (l.type === 'text') {
+                    document.getElementById('text-content-input').value = l.content;
+                    document.getElementById('text-color-input').value = l.color;
+                } else {
+                    document.getElementById('element-color-input').value = l.color;
+                }
+            }
+        }
+
+        document.getElementById('btn-rotate').onclick = () => {
+            if (!originalImg) return;
+            rotation = (rotation + 90) % 360;
+            const tempW = canvas.width;
+            canvas.width = canvas.height;
+            canvas.height = tempW;
+            applyAll();
+        };
+
+        document.getElementById('btn-reset').onclick = () => {
+            filters.special = 'none';
+            filters.brightness = 100;
+            filters.contrast = 100;
+            document.getElementById('brightness').value = 100;
+            document.getElementById('contrast').value = 100;
+            applyAll();
+        };
+
+        document.getElementById('brightness').oninput = (e) => { filters.brightness = e.target.value; applyAll(); };
+        document.getElementById('contrast').oninput = (e) => { filters.contrast = e.target.value; applyAll(); };
+        document.getElementById('btn-grayscale').onclick = () => { filters.special = 'grayscale(100%)'; applyAll(); };
+        document.getElementById('btn-sepia').onclick = () => { filters.special = 'sepia(100%)'; applyAll(); };
+        document.getElementById('btn-invert').onclick = () => { filters.special = 'invert(100%)'; applyAll(); };
+        document.getElementById('btn-blur').onclick = () => { filters.special = 'blur(5px)'; applyAll(); };
+        document.getElementById('toggle-adjustments').onclick = () => document.getElementById('adjustment-panel').classList.toggle('hidden');
+        document.getElementById('add-title').onclick = () => addText('Título', 60);
+        document.getElementById('add-subtitle').onclick = () => addText('Subtítulo', 36);
+        document.getElementById('text-content-input').oninput = (e) => { if(selectedLayerIndex > -1) { layers[selectedLayerIndex].content = e.target.value; applyAll(); }};
+        document.getElementById('text-color-input').oninput = (e) => { if(selectedLayerIndex > -1) { layers[selectedLayerIndex].color = e.target.value; applyAll(); }};
+        document.getElementById('element-color-input').oninput = (e) => { if(selectedLayerIndex > -1) { layers[selectedLayerIndex].color = e.target.value; applyAll(); }};
+        document.getElementById('delete-text').onclick = document.getElementById('delete-element').onclick = () => { layers.splice(selectedLayerIndex, 1); selectedLayerIndex = -1; updateTools(); applyAll(); };
+        document.getElementById('download-btn').onclick = () => { 
+            const a = document.createElement('a'); 
+            a.download = 'imagen_editada.png'; 
+            try {
+                a.href = canvas.toDataURL('image/png'); 
+                a.click(); 
+            } catch (e) {
+                console.error("Error al exportar imagen", e);
+            }
+        };
+    </script>
+</body>
+</html>
 
